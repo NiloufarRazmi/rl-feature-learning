@@ -47,7 +47,7 @@ ODOR_HIDDEN = -1.0
 
 
 class TwoCueGridWorld:
-    def __init__(self, size=11, max_steps=200, seed=None, sniff_bonus=0.01):
+    def __init__(self, size=11, max_steps=200, seed=None, sniff_bonus=0.1):
         assert size >= 5, "layout assumes size >= 5"
         self.size = size
         self.max_steps = max_steps
@@ -119,7 +119,7 @@ class TwoCueGridWorld:
             if np.array_equal(self.pos, port) and self.odor_revealed==True:
                 done = True
                 if i == self.odor_cue:
-                    reward =0.1
+                    reward =1
                 else:
                     reward = 0.0  # could be -1 to discourage early bailing
                 break
