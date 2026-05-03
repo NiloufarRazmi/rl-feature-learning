@@ -4,6 +4,7 @@ __pycache__/
 
 # Trained models 
 *.pt
+*.png
 
 # Virtual environments
 .venv/
@@ -11,6 +12,7 @@ venv/
 
 # Jupyter notebooks autosaves
 .ipynb_checkpoints/
+
 
 # OS files
 .DS_Store
