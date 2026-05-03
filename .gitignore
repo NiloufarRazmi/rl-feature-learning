@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Trained models 
+*.pt
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter notebooks autosaves
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
