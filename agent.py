@@ -49,7 +49,7 @@ class A2CAgent:
         value_coef=0.5,
         entropy_coef=0.01,
         max_grad_norm=0.5,
-        hidden=64,
+        hidden=400,
         device="cpu",
     ):
         self.gamma = gamma

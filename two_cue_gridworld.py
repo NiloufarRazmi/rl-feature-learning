@@ -25,43 +25,65 @@ Observation (length 4):
   - light_cue: 0 or 1, always visible
   - odor_cue: -1 if not yet revealed, else 0 or 1
 
-The "-1 means not revealed" trick is the simplest sentinel encoding. The
-network learns to treat -1 as "ignore" by virtue of seeing many examples
-where the optimal pre-reveal action is to head toward the odor port (the
-odor channel is uninformative in those states).
+Observation vector (length 7), one-hot encoded for the categorical cues:
+    [0]: row_normalized
+    [1]: col_normalized
+    [2]: light == 0 ?           ┐
+    [3]: light == 1 ?           ┘ exactly one of these is 1
+    [4]: odor not yet revealed? ┐
+    [5]: revealed odor == 0?    │ exactly one of these is 1
+    [6]: revealed odor == 1?    ┘
+
+Observation vector (length 6):
+    [0]: row_normalized
+    [1]: col_normalized
+    [2]: light == 0 ?     ┐
+    [3]: light == 1 ?     ┘ exactly one of these is 1
+    [4]: odor == 0 ?      ┐ both 0 means "odor not yet revealed";
+    [5]: odor == 1 ?      ┘ otherwise exactly one is 1
+
+Why one-hot? With a scalar like -1/0/1, the network has to LEARN that the
+three values are categorically different. With one-hot, the categorical
+structure is built into the input geometry: each state is an orthogonal
+basis vector. Faster learning, cleaner representations.
+
+Why no explicit "odor hidden" channel? "All-zeros means absent" matches how
+sensory features naturally work: a neuron tuned to odor A is silent when
+no odor is present, not active in some special "no-odor" state. The network
+detects "no odor revealed yet" as the absence of either odor channel.
 """
 
 import numpy as np
 
 
 # Indices into the observation vector, named for clarity.
-# Using named constants beats magic numbers when the obs grows.
-OBS_ROW   = 0
-OBS_COL   = 1
-OBS_LIGHT = 2
-OBS_ODOR  = 3
-OBS_DIM   = 4
-
-# Sentinel for "odor not yet revealed".
-ODOR_HIDDEN = -1.0
+OBS_ROW           = 0
+OBS_COL           = 1
+OBS_LIGHT_0       = 2
+OBS_LIGHT_1       = 3
+OBS_ODOR_0        = 4
+OBS_ODOR_1        = 5
+OBS_DIM           = 6
 
 
 class TwoCueGridWorld:
-    def __init__(self, size=11, max_steps=200, seed=None, sniff_bonus=0.1):
+    def __init__(self, size=5, max_steps=50, seed=None,
+                 sniff_bonus=0.1, wrong_port_penalty=0):
         assert size >= 5, "layout assumes size >= 5"
         self.size = size
         self.max_steps = max_steps
-        self.sniff_bonus = sniff_bonus  # reward for revealing the correct odor; 0.0 disables
+        self.sniff_bonus = sniff_bonus
+        self.wrong_port_penalty = wrong_port_penalty  # 0.0 disables
         self.rng = np.random.default_rng(seed)
 
         # Fixed locations on the grid. (row, col) pairs.
         # Using arrays so we can compare with np.array_equal.
         center_col = size // 2
         self.start         = np.array([5,  5])  # middle
-        self.odor_port_0   = np.array([0, size - 1])           # left
-        self.odor_port_1   = np.array([size - 1,  0])    # right
-        self.reward_port_0 = np.array([0,          0])           # top-left
-        self.reward_port_1 = np.array([size - 1,          size - 1])    # top-right
+        self.odor_port_0   = np.array([size -1,  0])           # left
+        self.odor_port_1   = np.array([0,  size - 1])    # right
+        self.reward_port_0 = np.array([0, 0])           # top-left
+        self.reward_port_1 = np.array([ size - 1, size - 1])    # top-right
 
         # Mapping cue -> location. Indexable by the cue value (0 or 1),
         # which is much cleaner than `if cue == 0: ... elif cue == 1: ...`.
@@ -116,23 +138,34 @@ class TwoCueGridWorld:
         # the agent can't just pick randomly until it gets lucky.
         correct_reward_port = self._reward_ports[self.odor_cue]
         for i, port in enumerate(self._reward_ports):
-            if np.array_equal(self.pos, port) and self.odor_revealed==True:
+            if np.array_equal(self.pos, port):
                 done = True
                 if i == self.odor_cue:
-                    reward =1
+                    reward +=1
                 else:
-                    reward = 0.0  # could be -1 to discourage early bailing
+                    reward += self.wrong_port_penalty
                 break
 
         truncated = (self.t >= self.max_steps) and not done
         return self._obs(), reward, done, truncated, {}
 
     def _obs(self):
+        """Build the one-hot observation. See module docstring for layout."""
         obs = np.zeros(OBS_DIM, dtype=np.float32)
-        obs[OBS_ROW]   = self.pos[0] / (self.size - 1)
-        obs[OBS_COL]   = self.pos[1] / (self.size - 1)
-        obs[OBS_LIGHT] = float(self.light_cue)
-        obs[OBS_ODOR]  = float(self.odor_cue) if self.odor_revealed else ODOR_HIDDEN
+        # Position: continuous, normalized to [0, 1].
+        obs[OBS_ROW] = self.pos[0] / (self.size - 1)
+        obs[OBS_COL] = self.pos[1] / (self.size - 1)
+        # Light cue: one-hot, always set.
+        if self.light_cue == 0:
+            obs[OBS_LIGHT_0] = 1.0
+        else:
+            obs[OBS_LIGHT_1] = 1.0
+        # Odor cue: 2 channels. Both 0 means "not yet revealed".
+        if self.odor_revealed:
+            if self.odor_cue == 0:
+                obs[OBS_ODOR_0] = 1.0
+            else:
+                obs[OBS_ODOR_1] = 1.0
         return obs
 
     def render(self):

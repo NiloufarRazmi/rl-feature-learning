@@ -23,7 +23,7 @@ from torch.distributions import Categorical
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, obs_dim, n_actions, hidden=64):
+    def __init__(self, obs_dim, n_actions, hidden=400):
         super().__init__()
         self.trunk = nn.Sequential(
             nn.Linear(obs_dim, hidden),

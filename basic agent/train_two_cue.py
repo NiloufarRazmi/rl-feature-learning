@@ -59,7 +59,7 @@ def train(
 
             if done or trunc:
                 # Bookkeeping for this episode.
-                got_reward = (reward ==1)
+                got_reward = (reward ==50)
                 cue_successes[(ep_light, ep_odor)].append(1.0 if got_reward else 0.0)
                 recent_successes.append(1.0 if got_reward else 0.0)
                 recent_lengths.append(ep_length)

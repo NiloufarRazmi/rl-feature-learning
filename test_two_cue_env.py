@@ -13,14 +13,22 @@ We're verifying:
 
 import numpy as np
 from two_cue_gridworld import (
-    TwoCueGridWorld, OBS_LIGHT, OBS_ODOR, ODOR_HIDDEN
+    TwoCueGridWorld,
+    OBS_LIGHT_0, OBS_LIGHT_1,
+    OBS_ODOR_0, OBS_ODOR_1,
 )
+
+
+def odor_revealed_in_obs(obs):
+    """True iff either odor channel is set (i.e. odor has been revealed).
+    All-zeros across both odor channels means 'hidden'."""
+    return (obs[OBS_ODOR_0] + obs[OBS_ODOR_1]) > 0.5
 
 
 def test_observation_shape():
     env = TwoCueGridWorld(seed=0)
     obs = env.reset()
-    assert obs.shape == (4,) and obs.dtype == np.float32
+    assert obs.shape == (6,) and obs.dtype == np.float32
     print("[PASS] obs shape and dtype:", obs.shape, obs.dtype)
 
 
@@ -40,8 +48,9 @@ def test_cues_change_across_episodes():
 def test_odor_hidden_at_start():
     env = TwoCueGridWorld(seed=0)
     obs = env.reset()
-    assert obs[OBS_ODOR] == ODOR_HIDDEN, f"odor leaked at start: {obs[OBS_ODOR]}"
-    assert obs[OBS_LIGHT] in (0.0, 1.0)
+    assert not odor_revealed_in_obs(obs), f"odor leaked at start: {obs}"
+    # Light is one-hot: exactly one of the two light channels should be set.
+    assert (obs[OBS_LIGHT_0] + obs[OBS_LIGHT_1]) == 1.0
     print("[PASS] odor hidden at start, light visible")
 
 
@@ -89,9 +98,13 @@ def test_odor_revealed_at_correct_port():
             obs, r, done, trunc, _ = env.step(action)
             if env.odor_revealed and sniff_reward is None:
                 sniff_reward = r  # capture the step that revealed odor
-        assert obs[OBS_ODOR] != ODOR_HIDDEN, \
+        assert odor_revealed_in_obs(obs), \
             f"odor not revealed at correct port (light={trial_light})"
-        assert obs[OBS_ODOR] == float(env.odor_cue)
+        # Check the right one-hot channel is set
+        if env.odor_cue == 0:
+            assert obs[OBS_ODOR_0] == 1.0
+        else:
+            assert obs[OBS_ODOR_1] == 1.0
         assert sniff_reward == 0.2, f"expected sniff bonus 0.2, got {sniff_reward}"
 
         # One-shot check: stepping again at the port should NOT give bonus.
@@ -112,7 +125,7 @@ def test_wrong_odor_port_no_reveal():
     wrong_port = env._odor_ports[1]
     obs, _, done, _ = _walk_to(env, wrong_port)
     assert not done
-    assert obs[OBS_ODOR] == ODOR_HIDDEN, "odor leaked at wrong port"
+    assert not odor_revealed_in_obs(obs), "odor leaked at wrong port"
     print("[PASS] wrong odor port does not reveal odor")
 
 
@@ -129,7 +142,8 @@ def test_correct_reward_port():
 
 
 def test_wrong_reward_port_terminates():
-    env = TwoCueGridWorld(seed=0)
+    # Use plain rewards (no shaping) for a clean assertion.
+    env = TwoCueGridWorld(seed=0, sniff_bonus=0.0, wrong_port_penalty=0.0)
     env.reset()
     wrong_port = env._reward_ports[1 - env.odor_cue]
     obs, r, done, _ = _walk_to(env, wrong_port)
@@ -150,7 +164,7 @@ def test_random_policy_baseline(n_episodes=500):
         while not (done or trunc):
             a = int(rng.integers(0, 4))
             obs, r, done, trunc, _ = env.step(a)
-            if obs[OBS_ODOR] != ODOR_HIDDEN:
+            if odor_revealed_in_obs(obs):
                 revealed_this_ep = True
         if r == 1.0:
             successes += 1
