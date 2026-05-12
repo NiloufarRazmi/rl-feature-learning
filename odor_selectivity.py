@@ -15,11 +15,6 @@ Interpretation:
   - cos < 1.0  -> the network's representation differs between the two
                   odor states. Lower = more different.
 
-Where do we EXPECT to see selectivity (low cosine)?
-  - Near the reward ports, because that's where the action choice depends
-    on which odor was sniffed.
-  - And probably along the path between odor port and reward port, since
-    the network has to "carry" the odor info to act on it.
 """
 
 import numpy as np
@@ -51,7 +46,7 @@ def get_hidden(net, obs_batch):
     return h
 
 
-def make_obs(row, col, light, odor, env_size=5):
+def make_obs(row, col, light, odor, env_size=11):
     """Build a one-hot observation. `odor` in {None, 0, 1} where None means hidden.
     With 2-channel odor, hidden = both channels at 0."""
     o = np.zeros(OBS_DIM, dtype=np.float32)
@@ -81,9 +76,9 @@ def compute_odor_selectivity_grid(net, light, env_size=11):
     Returns a (env_size, env_size) array of cosine similarities.
     """
     # Build all locations as a batch: 25 obs for odor=0, 25 obs for odor=1.
-    obs_o0 = np.stack([make_obs(r, c, light, 0.0, env_size)
+    obs_o0 = np.stack([make_obs(r, c, light, 0, env_size)
                        for r in range(env_size) for c in range(env_size)])
-    obs_o1 = np.stack([make_obs(r, c, light, 1.0, env_size)
+    obs_o1 = np.stack([make_obs(r, c, light, 1, env_size)
                        for r in range(env_size) for c in range(env_size)])
 
     H0 = get_hidden(net, obs_o0)   # (25, 64)
@@ -94,7 +89,8 @@ def compute_odor_selectivity_grid(net, light, env_size=11):
     norms1 = np.linalg.norm(H1, axis=1)
     dots   = (H0 * H1).sum(axis=1)
     cos    = dots / (norms0 * norms1 + 1e-9)  # (25,)
-
+    
+    print(obs_o1[:,4].reshape(env_size, env_size))
     return cos.reshape(env_size, env_size)
 
 
@@ -144,10 +140,10 @@ def plot_odor_selectivity(net, env_size=11, save="odor_selectivity.png",
 
             # Mark task-relevant locations.
             ax.plot(0, 0,                      "rs", ms=18, mew=3, fillstyle="none")
-            ax.plot(env_size-1, 0,             "ms", ms=18, mew=3, fillstyle="none")
-            ax.plot(0, env_size//2,            "co", ms=15, mew=3, fillstyle="none")
-            ax.plot(env_size-1, env_size//2,   "yo", ms=15, mew=3, fillstyle="none")
-            ax.plot(env_size//2, env_size//2, "*",  color="white", ms=15,
+            ax.plot(env_size-1, env_size-1,             "ms", ms=18, mew=3, fillstyle="none")
+            ax.plot(0, env_size-1,            "co", ms=15, mew=3, fillstyle="none")
+            ax.plot(env_size-1, 0,   "yo", ms=15, mew=3, fillstyle="none")
+            ax.plot(5, 5, "*",  color="white", ms=15,
                     mec="black", mew=1.5)
 
             ax.set_title(f"{label}, light = {light}")

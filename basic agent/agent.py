@@ -45,7 +45,7 @@ class A2CAgent:
         n_actions,
         gamma=0.99,
         n_steps=20,
-        lr=3e-4,
+        lr=5e-3,
         value_coef=0.5,
         entropy_coef=0.01,
         max_grad_norm=0.5,

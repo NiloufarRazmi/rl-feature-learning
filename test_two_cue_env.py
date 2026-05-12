@@ -1,5 +1,4 @@
 """
-Sanity checks for the two-cue task.
 
 We're verifying:
   1. Observation shape and dtype.

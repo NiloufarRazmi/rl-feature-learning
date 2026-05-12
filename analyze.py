@@ -83,6 +83,9 @@ def make_state_grid(env_size=5):
                     })
     return np.stack(obs_list), meta
 
+def cosine_sim(a, b, eps=1e-9):
+    """Cosine similarity between two 1D vectors."""
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + eps))
 
 def plot_value_heatmaps(net, env_size=11, save="value_heatmaps.png"):
     """Six heatmaps: 2 lights x 3 odor states."""

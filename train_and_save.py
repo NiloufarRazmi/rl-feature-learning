@@ -17,7 +17,7 @@ def entropy_schedule(step, total_steps, start=0.10, end=0.01):
 
 
 def train_and_save(
-    total_steps=1500_000,
+    total_steps=2000_000,
     n_steps=20,
     seed=0,
     save_path="trained_agent.pt",
@@ -26,7 +26,7 @@ def train_and_save(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    env = TwoCueGridWorld(seed=seed, size = 11,max_steps=200, sniff_bonus=0.5, wrong_port_penalty=0)
+    env = TwoCueGridWorld(seed=seed, size = 11,max_steps=200, sniff_bonus=5, wrong_port_penalty=0)
     agent = A2CAgent(
         obs_dim=env.obs_dim, n_actions=env.n_actions, n_steps=n_steps,
         entropy_coef=0.10,
@@ -55,7 +55,7 @@ def train_and_save(
                 ep_used_odor = True
 
             if done or trunc:
-                got = (reward ==1)  # +1 for correct, but with sniff bonus could be ~1.2
+                got = (reward ==50)  # +1 for correct, but with sniff bonus could be ~1.2
                 cue_succ[(ep_light, ep_odor)].append(1.0 if got else 0.0)
                 recent_succ.append(1.0 if got else 0.0)
                 recent_used.append(1.0 if ep_used_odor else 0.0)
